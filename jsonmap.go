@@ -24,24 +24,24 @@ func New(data []byte) JsonMap {
 func (j JsonMap) Get(path string) (interface{}, error) {
 	var segs []string = strings.Split(path, ".")
 
-	jCopy := j
+	mapCopy := j
 
 	for i, v := range segs {
-		if _, ok := jCopy[v]; !ok {
+		if _, ok := mapCopy[v]; !ok {
 			return nil, errors.New(fmt.Sprintf("jsonmap: key '%v' does not exist", v))
 		}
 
 		if i == len(segs)-1 {
-			return jCopy[v], nil
+			return mapCopy[v], nil
 		}
 
-		switch jCopy[v].(type) {
+		switch mapCopy[v].(type) {
 		case map[string]interface{}:
-			jCopy = jCopy[v].(map[string]interface{})
+			mapCopy = mapCopy[v].(map[string]interface{})
 		}
 	}
 
-	return jCopy, nil
+	return mapCopy, nil
 }
 
 func (j JsonMap) String(path string) (string, error) {

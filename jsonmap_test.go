@@ -37,21 +37,21 @@ func TestGet(t *testing.T) {
 	cT := map[string]string{"d": "baz"}
 
 	if err != nil || reflect.DeepEqual(c, cT) {
-		t.Errorf("var a (%v) does not equal var aT (%v)", c, cT)
+		t.Errorf("var c (%v) does not equal var cT (%v)", c, cT)
 	}
 
 	c2, err := j.Get("c.d")
 	c2T := "baz"
 
 	if err != nil || c2 != c2T {
-		t.Errorf("var a (%v) does not equal var aT (%v)", c2, c2T)
+		t.Errorf("var c2 (%v) does not equal var c2T (%v)", c2, c2T)
 	}
 
 	e, err := j.Get("e.f.g.h")
 	eT := "nested"
 
 	if err != nil || e != eT {
-		t.Errorf("var a (%v) does not equal var aT (%v)", e, eT)
+		t.Errorf("var e (%v) does not equal var eT (%v)", e, eT)
 	}
 
 	notExist, err := j.Get("e.f.not.real.path")
@@ -75,14 +75,17 @@ func TestFind(t *testing.T) {
 						"h":"nested"
 					}
 				}
+			},
+			"j":{
+				"d":"baraz"
 			}
 		}`,
 	)
 
 	j := New(json)
 
-	d := j.Find("d")
-	dT := "baz"
+	d := j.Find("h")
+	dT := "nested"
 
 	if d != dT {
 		t.Errorf("expected: %v, actual: %v", dT, d)
@@ -93,5 +96,19 @@ func TestFind(t *testing.T) {
 
 	if gh != ghT {
 		t.Errorf("expected: %v, actual: %v", ghT, gh)
+	}
+
+	cd := j.Find("c.d")
+	cdT := "baz"
+
+	if cd != cdT {
+		t.Errorf("expected: %v, actual: %v", cdT, cd)
+	}
+
+	jd := j.Find("j.d")
+	jdT := "baraz"
+
+	if jd != jdT {
+		t.Errorf("expected: %v, actual: %v", jdT, jd)
 	}
 }
