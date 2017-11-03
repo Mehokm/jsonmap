@@ -1,64 +1,71 @@
 package jsonmap
 
 import (
-	"errors"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+var testJson = []byte(
+	`{
+		"a":"foo",
+		"b":"bar",
+		"c":{
+			"d":"baz"
+		},
+		"e":{
+			"f":{
+				"g":{
+					"h":"nested"
+				}
+			}
+		},
+		"arr": [
+			{
+				"name": "blah"
+			},
+			{
+				"name": "bleh"
+			}
+		]
+	}`,
 )
 
 func TestGet(t *testing.T) {
-	json := []byte(
-		`{
-			"a":"foo",
-			"b":"bar",
-			"c":{
-				"d":"baz"
-			},
-			"e":{
-				"f":{
-					"g":{
-						"h":"nested"
-					}
-				}
-			}
-		}`,
-	)
-
-	j := New(json)
+	j := New(testJson)
 
 	a, err := j.Get("a")
-	aT := "foo"
 
-	if err != nil || a != aT {
-		t.Errorf("var a (%v) does not equal var aT (%v)", a, aT)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "foo", a)
 
 	c, err := j.Get("c")
-	cT := map[string]string{"d": "baz"}
 
-	if err != nil || reflect.DeepEqual(c, cT) {
-		t.Errorf("var c (%v) does not equal var cT (%v)", c, cT)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]interface{}{"d": "baz"}, c)
 
 	c2, err := j.Get("c.d")
-	c2T := "baz"
 
-	if err != nil || c2 != c2T {
-		t.Errorf("var c2 (%v) does not equal var c2T (%v)", c2, c2T)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "baz", c2)
 
 	e, err := j.Get("e.f.g.h")
-	eT := "nested"
 
-	if err != nil || e != eT {
-		t.Errorf("var e (%v) does not equal var eT (%v)", e, eT)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "nested", e)
 
-	notExist, err := j.Get("e.f.not.real.path")
+	shouldntExist, err := j.Get("e.f.not.real.path")
 
-	if notExist != nil && err != errors.New("jsonmap: key 'not' does not exist") {
-		t.Error("expected 'does not exist' error")
-	}
+	assert.Nil(t, shouldntExist)
+	assert.EqualError(t, err, "jsonmap: key 'not' does not exist")
+
+	// arr, err := j.Array("arr")
+
+	// if err != nil {
+	// 	t.Error("expected array")
+	// }
+
+	// fmt.Println(arr[0].String("name"))
 }
 
 func TestFind(t *testing.T) {

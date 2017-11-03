@@ -7,12 +7,13 @@ import (
 	"strings"
 )
 
-type JsonMap map[string]interface{}
+// JSONMap is a wrapper type for generic JSON decoding
+type JSONMap map[string]interface{}
 
-func New(data []byte) JsonMap {
-	var j JsonMap
+func New(data []byte) JSONMap {
+	var j JSONMap
 
-	if err := json.Unmarshal(data, &j); err == nil {
+	if err := json.Unmarshal(data, &j); err != nil {
 		fmt.Println(err)
 
 		return nil
@@ -21,30 +22,32 @@ func New(data []byte) JsonMap {
 	return j
 }
 
-func (j JsonMap) Get(path string) (interface{}, error) {
+func (j JSONMap) Get(path string) (interface{}, error) {
 	keys := strings.Split(path, ".")
 
 	jj := j
 
 	for i, key := range keys {
-		if _, ok := jj[key]; !ok {
+		value, exists := jj[key]
+
+		if !exists {
 			return nil, fmt.Errorf("jsonmap: key '%v' does not exist", key)
 		}
 
 		if i == len(keys)-1 {
-			return jj[key], nil
+			return value, nil
 		}
 
-		switch jj[key].(type) {
+		switch value.(type) {
 		case map[string]interface{}:
-			jj = jj[key].(map[string]interface{})
+			jj = value.(map[string]interface{})
 		}
 	}
 
 	return jj, nil
 }
 
-func (j JsonMap) String(path string) (string, error) {
+func (j JSONMap) String(path string) (string, error) {
 	val, err := j.Get(path)
 
 	if err != nil || val == nil {
@@ -53,84 +56,97 @@ func (j JsonMap) String(path string) (string, error) {
 	return val.(string), nil
 }
 
-func (j JsonMap) Int(path string) (int, error) {
+func (j JSONMap) Int(path string) (int, error) {
 	val, err := j.String(path)
 
 	if err != nil {
 		return 0, err
 	}
 
-	i, convErr := strconv.Atoi(val)
-	if convErr != nil {
-		return 0, convErr
+	i, err := strconv.Atoi(val)
+
+	if err != nil {
+		return 0, err
 	}
+
 	return i, nil
 }
 
-func (j JsonMap) Float(path string) (float64, error) {
+func (j JSONMap) Float(path string) (float64, error) {
 	val, err := j.String(path)
 
 	if err != nil {
 		return 0.0, err
 	}
 
-	f, convErr := strconv.ParseFloat(val, 64)
-	if convErr != nil {
-		return 0.0, convErr
+	f, err := strconv.ParseFloat(val, 64)
+
+	if err != nil {
+		return 0.0, err
 	}
+
 	return f, nil
 }
 
-func (j JsonMap) Bool(path string) (bool, error) {
+func (j JSONMap) Bool(path string) (bool, error) {
 	val, err := j.String(path)
 
 	if err != nil {
 		return false, err
 	}
 
-	b, convErr := strconv.ParseBool(val)
-	if convErr != nil {
-		return false, convErr
+	b, err := strconv.ParseBool(val)
+
+	if err != nil {
+		return false, err
 	}
+
 	return b, nil
 }
 
-func (j JsonMap) Array(path string) ([]JsonMap, error) {
+func (j JSONMap) Array(path string) ([]JSONMap, error) {
 	val, err := j.Get(path)
 
 	if err != nil || val == nil {
 		return nil, err
 	}
-	maps := make([]JsonMap, 0)
-	arr := val.([]interface{})
-	for _, v := range arr {
-		jMap := JsonMap(v.(map[string]interface{}))
-		maps = append(maps, jMap)
+
+	jArrays, ok := val.([]interface{})
+
+	if !ok {
+		return nil, fmt.Errorf("jsonmap: key '%v' is not of type array", path)
 	}
-	return maps, nil
+
+	jMaps := make([]JSONMap, len(jArrays))
+
+	for i, arr := range jArrays {
+		jMaps[i] = JSONMap(arr.(map[string]interface{}))
+	}
+
+	return jMaps, nil
 }
 
-func (j JsonMap) Find(key string) interface{} {
+func (j JSONMap) Find(key string) interface{} {
 	if strings.Contains(key, ".") {
 		return findSubpath(key, j)
-	} else {
-		return find(key, j)
 	}
+
+	return find(key, j)
 }
 
-func find(key string, tree map[string]interface{}) interface{} {
-	treeCopy := tree
+func find(key string, m map[string]interface{}) interface{} {
+	mm := m
 
-	if f, ok := treeCopy[key]; ok {
-		return f
+	if found, ok := mm[key]; ok {
+		return found
 	}
 
-	for _, val := range treeCopy {
+	for _, val := range mm {
 		switch val.(type) {
 		case map[string]interface{}:
-			m := val.(map[string]interface{})
+			sm := val.(map[string]interface{})
 
-			found := find(key, m)
+			found := find(key, sm)
 
 			if found != nil {
 				return found
@@ -140,19 +156,16 @@ func find(key string, tree map[string]interface{}) interface{} {
 	return nil
 }
 
-func findSubpath(sub string, j JsonMap) interface{} {
-	segs := strings.Split(sub, ".")
-	subpath := strings.Join(segs[1:], ".")
+func findSubpath(path string, j JSONMap) interface{} {
+	keys := strings.Split(path, ".")
 
-	f := find(segs[0], j)
+	subpath := strings.Join(keys[1:], ".")
 
-	foundMap := JsonMap(f.(map[string]interface{}))
+	jj := JSONMap(find(keys[0], j).(map[string]interface{}))
 
-	found, err := foundMap.Get(subpath)
-
-	if err != nil {
-		return nil
+	if found, err := jj.Get(subpath); err == nil {
+		return found
 	}
 
-	return found
+	return nil
 }
