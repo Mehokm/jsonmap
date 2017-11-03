@@ -2,7 +2,6 @@ package jsonmap
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,37 +10,38 @@ import (
 type JsonMap map[string]interface{}
 
 func New(data []byte) JsonMap {
-	j := make(JsonMap)
+	var j JsonMap
 
-	uErr := json.Unmarshal(data, &j)
-	if uErr != nil {
-		fmt.Println(uErr)
+	if err := json.Unmarshal(data, &j); err == nil {
+		fmt.Println(err)
+
+		return nil
 	}
 
 	return j
 }
 
 func (j JsonMap) Get(path string) (interface{}, error) {
-	var segs []string = strings.Split(path, ".")
+	keys := strings.Split(path, ".")
 
-	mapCopy := j
+	jj := j
 
-	for i, v := range segs {
-		if _, ok := mapCopy[v]; !ok {
-			return nil, errors.New(fmt.Sprintf("jsonmap: key '%v' does not exist", v))
+	for i, key := range keys {
+		if _, ok := jj[key]; !ok {
+			return nil, fmt.Errorf("jsonmap: key '%v' does not exist", key)
 		}
 
-		if i == len(segs)-1 {
-			return mapCopy[v], nil
+		if i == len(keys)-1 {
+			return jj[key], nil
 		}
 
-		switch mapCopy[v].(type) {
+		switch jj[key].(type) {
 		case map[string]interface{}:
-			mapCopy = mapCopy[v].(map[string]interface{})
+			jj = jj[key].(map[string]interface{})
 		}
 	}
 
-	return mapCopy, nil
+	return jj, nil
 }
 
 func (j JsonMap) String(path string) (string, error) {
