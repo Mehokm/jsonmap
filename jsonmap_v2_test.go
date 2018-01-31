@@ -35,20 +35,28 @@ var testy = []byte(
 )
 
 func TestV2(t *testing.T) {
-	jm, err := NewV2(testy)
+	jm, err := NewV3(testy)
 
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	for _, node := range jm.Nodes {
-		if node.Key == "l" {
-			fmt.Println(node.Value.([]JSONNode)[0].Value)
-		} else if node.Key == "k" {
-			fmt.Println(node.Value.([]JSONNode)[0].Key)
-		} else if node.Key == "e" {
-			fmt.Println(node.ValueType)
-		}
-	}
+	// for _, node := range jm.Nodes {
+	// 	if node.Key == "l" {
+	// 		fmt.Println(node.Value.([]JSONNode)[0].Value)
+	// 	} else if node.Key == "k" {
+	// 		fmt.Println(node.Value.([]JSONNode)[0].Key)
+	// 	} else if node.Key == "e" {
+	// 		fmt.Println(node.ValueType)
+	// 	}
+	// }
 
+	node, _ := jm.Get("k")
+
+	fmt.Println(node.([0].Get("name"))
+
+	// fmt.Println(jm)
+
+	// try changing from array to map[string]JSONNode
+	// change JSONNode to just have type and value
 }
