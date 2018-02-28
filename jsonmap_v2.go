@@ -2,107 +2,29 @@ package jsonmap
 
 import (
 	"encoding/json"
-	"fmt"
-	"reflect"
 	"strings"
 )
 
-const (
-	String Type = iota
-	Number
-	Object
-	Array
-	Bool
-	Null
-)
-
-type Type int
-
-type JSONMapV2 map[string]JSONNode
-
-type JSONMapV3 map[string]interface{}
-
-type JSONNode struct {
-	Key       string
-	ValueType Type
-	value     interface{}
+type notFoundError struct {
+	path string
 }
 
-// func NewV2(b []byte) (JSONMapV2, error) {
-// 	var m map[string]interface{}
+func (nfe notFoundError) Error() string {
+	return "JSONMapV2: path '" + nfe.path + "' does not exist"
+}
 
-// 	var jm JSONMapV2
+type incorrectTypeError struct {
+	t, path string
+}
 
-// 	if err := json.Unmarshal(b, &m); err != nil {
-// 		return jm, err
-// 	}
+func (nte incorrectTypeError) Error() string {
+	return "JSONMapV2: item for path '" + nte.path + "' is not of type " + nte.t
+}
 
-// 	jm = buildMap(m)
+type JSONMapV2 map[string]interface{}
 
-// 	return jm, nil
-// }
-
-// func buildMap(m map[string]interface{}) JSONMapV2 {
-// 	var jns = make(JSONMapV2)
-
-// 	for key, value := range m {
-// 		var j JSONNode
-
-// 		if vv, ok := value.(map[string]interface{}); ok {
-// 			j = JSONNode{key, Object, buildMap(vv)}
-// 		} else {
-// 			j = buildNode(key, value)
-// 		}
-
-// 		jns[key] = j
-// 	}
-
-// 	return jns
-// }
-
-// func buildNode(key string, value interface{}) JSONNode {
-// 	j := JSONNode{}
-
-// 	switch value.(type) {
-// 	case float64:
-// 		j.ValueType = Number
-// 		j.value = value.(float64)
-// 	case string:
-// 		j.ValueType = String
-// 		j.value = value.(string)
-// 	case bool:
-// 		j.ValueType = Bool
-// 		j.value = value.(bool)
-// 	case nil:
-// 		j.ValueType = Null
-// 		j.value = nil
-// 	case map[string]interface{}:
-// 		j.ValueType = Object
-// 		j.value = buildMap(value.(map[string]interface{}))
-// 	case []interface{}:
-// 		values := value.([]interface{})
-
-// 		var nodes []interface{}
-
-// 		for _, v := range values {
-
-// 			switch v.(type) {
-// 			case map[string]interface{}:
-// 				nodes = append(nodes, buildMap(v.(map[string]interface{})))
-// 			default:
-// 				nodes = append(nodes, buildNode(key, v))
-// 			}
-// 		}
-
-// 		j.ValueType = Array
-// 		j.value = nodes
-// 	}
-
-// 	return j
-// }
-
-func NewV3(b []byte) (JSONMapV3, error) {
-	var jm JSONMapV3
+func NewV2(b []byte) (JSONMapV2, error) {
+	var jm JSONMapV2
 
 	if err := json.Unmarshal(b, &jm); err != nil {
 		return jm, err
@@ -111,108 +33,154 @@ func NewV3(b []byte) (JSONMapV3, error) {
 	return jm, nil
 }
 
-func (jm JSONMapV3) Get(path string) (interface{}, bool) {
+func (jm JSONMapV2) Get(path string) (interface{}, bool) {
 	keys := strings.Split(path, ".")
 
-	value, found := getFromMap(jm, keys)
-
-	return value, found
+	return getFromMap(jm, keys)
 }
 
-func (jm JSONMapV3) Map(path string) (JSONMapV3, error) {
-	var m JSONMapV3
-	var err error
+func (jm JSONMapV2) Map(path string) (JSONMapV2, error) {
+	it, found := jm.Get(path)
+
+	if !found {
+		return nil, notFoundError{path}
+	}
+
+	if v, ok := it.(map[string]interface{}); ok {
+		return JSONMapV2(v), nil
+	}
+
+	return nil, incorrectTypeError{"map", path}
+}
+
+func (jm JSONMapV2) String(path string) (string, error) {
+	it, found := jm.Get(path)
+
+	if !found {
+		return "", notFoundError{path}
+	}
+
+	if v, ok := it.(string); ok {
+		return v, nil
+	}
+
+	return "", incorrectTypeError{"string", path}
+}
+
+func (jm JSONMapV2) Number(path string) (float64, error) {
+	it, found := jm.Get(path)
+
+	if !found {
+		return 0, notFoundError{path}
+	}
+
+	if v, ok := it.(float64); ok {
+		return v, nil
+	}
+
+	return 0, incorrectTypeError{"number", path}
+}
+
+func (jm JSONMapV2) Bool(path string) (bool, error) {
+	it, found := jm.Get(path)
+
+	if !found {
+		return false, notFoundError{path}
+	}
+
+	if v, ok := it.(bool); ok {
+		return v, nil
+	}
+
+	return false, incorrectTypeError{"boolean", path}
+}
+
+// Array methods
+
+func (jm JSONMapV2) Array(path string) ([]interface{}, error) {
+	it, found := jm.Get(path)
+
+	if !found {
+		return nil, notFoundError{path}
+	}
+
+	if v, ok := it.([]interface{}); ok {
+		return v, nil
+	}
+
+	return nil, incorrectTypeError{"array", path}
+}
+
+func (jm JSONMapV2) MapArray(path string) ([]JSONMapV2, error) {
+	var arrs []JSONMapV2
 
 	it, found := jm.Get(path)
 
-	fmt.Println(reflect.TypeOf(it))
-	if found {
-		if v, ok := it.(map[string]interface{}); ok {
-			m = JSONMapV3(v)
-		} else {
-			err = fmt.Errorf("jsonmap: item for path '%v' is not of type map", path)
-		}
-	} else {
-		err = fmt.Errorf("jsonmap: path '%v' does not exist", path)
+	if !found {
+		return nil, notFoundError{path}
 	}
 
-	return m, err
+	for _, v := range it.([]interface{}) {
+		if vv, ok := v.(map[string]interface{}); ok {
+			arrs = append(arrs, vv)
+		}
+	}
+
+	return arrs, nil
 }
 
-func (jm JSONMapV3) String(path string) (string, error) {
-	var s string
-	var err error
+func (jm JSONMapV2) StringArray(path string) ([]string, error) {
+	var arrs []string
 
 	it, found := jm.Get(path)
 
-	if found {
-		if v, ok := it.(string); ok {
-			s = v
-		} else {
-			err = fmt.Errorf("jsonmap: item for path '%v' is not of type string", path)
-		}
-	} else {
-		err = fmt.Errorf("jsonmap: path '%v' does not exist", path)
+	if !found {
+		return nil, notFoundError{path}
 	}
 
-	return s, err
+	for _, v := range it.([]interface{}) {
+		if vv, ok := v.(string); ok {
+			arrs = append(arrs, vv)
+		}
+	}
+
+	return arrs, nil
 }
 
-func (jm JSONMapV3) Number(path string) (float64, error) {
-	var f float64
-	var err error
+func (jm JSONMapV2) NumberArray(path string) ([]float64, error) {
+	var arrs []float64
 
 	it, found := jm.Get(path)
 
-	if found {
-		if v, ok := it.(float64); ok {
-			f = v
-		} else {
-			err = fmt.Errorf("jsonmap: item for path '%v' is not of type number", path)
-		}
-	} else {
-		err = fmt.Errorf("jsonmap: path '%v' does not exist", path)
+	if !found {
+		return nil, notFoundError{path}
 	}
 
-	return f, err
+	for _, v := range it.([]interface{}) {
+		if vv, ok := v.(float64); ok {
+			arrs = append(arrs, vv)
+		}
+	}
+
+	return arrs, nil
 }
 
-func (jm JSONMapV3) Bool(path string) (bool, error) {
-	var b bool
-	var err error
+func (jm JSONMapV2) BoolArray(path string) ([]bool, error) {
+	var arrs []bool
 
 	it, found := jm.Get(path)
 
-	if found {
-		if v, ok := it.(bool); ok {
-			b = v
-		} else {
-			err = fmt.Errorf("jsonmap: item for path '%v' is not of type bool", path)
-		}
-	} else {
-		err = fmt.Errorf("jsonmap: path '%v' does not exist", path)
+	if !found {
+		return nil, notFoundError{path}
 	}
 
-	return b, err
-}
-
-func (jm JSONMapV3) Array(path string) ([]interface{}, error) {
-	var arrs []interface{}
-	var err error
-
-	it, found := jm.Get(path)
-
-	if found {
-		if v, ok := it.([]interface{}); ok {
-			arrs = v
-		} else {
-			err = fmt.Errorf("jsonmap: item for path '%v' is not of type array", path)
+	for _, v := range it.([]interface{}) {
+		if vv, ok := v.(bool); ok {
+			arrs = append(arrs, vv)
 		}
-	} else {
-		err = fmt.Errorf("jsonmap: path '%v' does not exist", path)
 	}
 
-	return arrs, err
+	return arrs, nil
 }
 
 func getFromMap(m map[string]interface{}, keys []string) (interface{}, bool) {
@@ -244,10 +212,16 @@ func get(it interface{}, keys []string) (interface{}, bool) {
 	case nil:
 		vv = nil
 	case map[string]interface{}:
+		m := it.(map[string]interface{})
+
+		if _, ok := m[keys[0]]; !ok {
+			return nil, false
+		}
+
 		if len(keys) == 1 {
-			vv = it.(map[string]interface{})[keys[0]]
+			vv = m[keys[0]]
 		} else {
-			return getFromMap(it.(map[string]interface{}), keys)
+			return getFromMap(m, keys)
 		}
 	case []interface{}:
 		values := it.([]interface{})
