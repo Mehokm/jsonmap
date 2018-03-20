@@ -40,7 +40,18 @@ var testy = []byte(
 				"q":true
 			}
 		},
-		"s": 123.456
+		"s": 123.456,
+		"t":{
+			"q":{
+				"r": ["first", "second", "third", "fourth"],
+				"w": [1, 2, 3.4, 4]
+			}
+		},
+		"v": [1, 2, 4.5, 6],
+		"x": [true, true, false],
+		"y":{
+			"z": [false, false, true]
+		}
 	}`,
 )
 
@@ -175,5 +186,85 @@ func TestJSONMapV2Number(t *testing.T) {
 	node, err = jm.Number("e.f.i")
 
 	assert.Equal(t, 10.01, node)
+	assert.NoError(t, err)
+}
+
+func TestJSONMapV2Array(t *testing.T) {
+	jm, err := NewV2(testy)
+
+	assert.NoError(t, err)
+
+	// top level
+
+	node, err := jm.Array("l")
+
+	assert.Equal(t, []interface{}{"why", "is", "this", "hard"}, node)
+	assert.NoError(t, err)
+
+	// nested
+
+	node, err = jm.Array("t.q.r")
+
+	assert.Equal(t, []interface{}{"first", "second", "third", "fourth"}, node)
+	assert.NoError(t, err)
+}
+
+func TestJSONMapV2StringArray(t *testing.T) {
+	jm, err := NewV2(testy)
+
+	assert.NoError(t, err)
+
+	// top level
+
+	node, err := jm.StringArray("l")
+
+	assert.Equal(t, []string{"why", "is", "this", "hard"}, node)
+	assert.NoError(t, err)
+
+	// nested
+
+	node, err = jm.StringArray("t.q.r")
+
+	assert.Equal(t, []string{"first", "second", "third", "fourth"}, node)
+	assert.NoError(t, err)
+}
+
+func TestJSONMapV2BoolArray(t *testing.T) {
+	jm, err := NewV2(testy)
+
+	assert.NoError(t, err)
+
+	// top level
+
+	node, err := jm.BoolArray("x")
+
+	assert.Equal(t, []bool{true, true, false}, node)
+	assert.NoError(t, err)
+
+	// nested
+
+	node, err = jm.BoolArray("y.z")
+
+	assert.Equal(t, []bool{false, false, true}, node)
+	assert.NoError(t, err)
+}
+
+func TestJSONMapV2NumberArray(t *testing.T) {
+	jm, err := NewV2(testy)
+
+	assert.NoError(t, err)
+
+	// top level
+
+	node, err := jm.NumberArray("v")
+
+	assert.Equal(t, []float64{1, 2, 4.5, 6}, node)
+	assert.NoError(t, err)
+
+	// nested
+
+	node, err = jm.NumberArray("t.q.w")
+
+	assert.Equal(t, []float64{1, 2, 3.4, 4}, node)
 	assert.NoError(t, err)
 }
